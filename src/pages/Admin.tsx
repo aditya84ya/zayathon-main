@@ -18,7 +18,7 @@ import {
 } from '@/components/ui/select';
 import {
   Users, Download, RefreshCw, Search, LogOut, Check, X,
-  Trophy, Mail, BarChart3, Plus, Edit, Trash2, Send
+  Trophy, Mail, BarChart3, Plus, Edit, Trash2, Send, Image
 } from 'lucide-react';
 
 interface Registration {
@@ -31,6 +31,7 @@ interface Registration {
   year_of_study: string;
   problem_statement: string;
   status: 'pending' | 'approved' | 'rejected';
+  payment_screenshot?: string;
   created_at: string;
 }
 
@@ -60,6 +61,7 @@ const Admin = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [user, setUser] = useState<any>(null);
   const [activeTab, setActiveTab] = useState('registrations');
+  const [processingIds, setProcessingIds] = useState<Set<string>>(new Set());
 
   // Problem Statements State
   const [problemStatements, setProblemStatements] = useState<ProblemStatement[]>([]);
@@ -88,6 +90,31 @@ const Admin = () => {
 
   useEffect(() => {
     checkAuth();
+  }, []);
+
+  useEffect(() => {
+    // Set up real-time subscription for registrations
+    const channel = supabase
+      .channel('registrations-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'registrations'
+        },
+        (payload) => {
+          console.log('Registration change detected:', payload);
+          // Refresh registrations when any change occurs
+          fetchRegistrations();
+        }
+      )
+      .subscribe();
+
+    // Cleanup subscription on unmount
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const checkAuth = async () => {
@@ -119,19 +146,31 @@ const Admin = () => {
   };
 
   const fetchRegistrations = async () => {
-    const result = await getRegistrations();
-    if (result.success && result.data) {
-      // Add status and problem_statement fields if they don't exist
-      const regs = result.data.map((r: any) => ({
-        ...r,
-        status: r.status || 'pending',
-        problem_statement: r.problem_statement || 'Not specified'
-      }));
-      setRegistrations(regs as Registration[]);
-    }
-    const countResult = await getRegistrationCount();
-    if (countResult.success) {
-      setTotalCount(countResult.count || 0);
+    try {
+      console.log('Fetching registrations...');
+      const result = await getRegistrations();
+      console.log('Fetch result:', result);
+      
+      if (result.success && result.data) {
+        // Add status and problem_statement fields if they don't exist
+        const regs = result.data.map((r: any) => ({
+          ...r,
+          status: r.status || 'pending',
+          problem_statement: r.problem_statement || 'Not specified',
+          payment_screenshot: r.payment_screenshot || null
+        }));
+        console.log('Processed registrations:', regs);
+        setRegistrations(regs as Registration[]);
+      } else {
+        console.error('Failed to fetch registrations:', result.error);
+      }
+      
+      const countResult = await getRegistrationCount();
+      if (countResult.success) {
+        setTotalCount(countResult.count || 0);
+      }
+    } catch (error) {
+      console.error('Error in fetchRegistrations:', error);
     }
   };
 
@@ -155,22 +194,132 @@ const Admin = () => {
   };
 
   const handleApproveRegistration = async (id: string) => {
-    const { error } = await supabase.from('registrations').update({ status: 'approved' }).eq('id', id);
-    if (error) {
-      toast({ title: 'Error', description: 'Failed to approve registration', variant: 'destructive' });
-    } else {
-      toast({ title: 'Success', description: 'Registration approved!' });
-      fetchRegistrations();
+    if (processingIds.has(id)) return;
+    
+    setProcessingIds(prev => new Set(prev).add(id));
+    
+    try {
+      console.log('Attempting to approve registration:', id);
+      
+      // Optimistically update the UI
+      setRegistrations(prev => 
+        prev.map(reg => reg.id === id ? { ...reg, status: 'approved' as const } : reg)
+      );
+
+      // Try direct update with explicit RLS bypass using service role would be ideal
+      // But since we're using anon key, we need to ensure policies allow it
+      const { data, error } = await supabase
+        .from('registrations')
+        .update({ status: 'approved', updated_at: new Date().toISOString() })
+        .eq('id', id)
+        .select()
+        .single();
+      
+      if (error) {
+        console.error('Error approving registration:', error);
+        console.error('Error details:', JSON.stringify(error, null, 2));
+        
+        // Check if it's an RLS policy error
+        if (error.message?.includes('policy') || error.code === '42501') {
+          toast({ 
+            title: 'Permission Error', 
+            description: 'Row Level Security is blocking this operation. Please add UPDATE policy in Supabase Dashboard.', 
+            variant: 'destructive' 
+          });
+        } else {
+          toast({ 
+            title: 'Error', 
+            description: error.message || 'Failed to approve registration', 
+            variant: 'destructive' 
+          });
+        }
+        
+        // Revert optimistic update
+        await fetchRegistrations();
+      } else {
+        console.log('Approval successful:', data);
+        toast({ title: 'Success', description: 'Registration approved!' });
+        // Fetch fresh data to ensure consistency
+        await fetchRegistrations();
+      }
+    } catch (error: any) {
+      console.error('Unexpected error:', error);
+      await fetchRegistrations();
+      toast({ 
+        title: 'Error', 
+        description: error.message || 'An unexpected error occurred', 
+        variant: 'destructive' 
+      });
+    } finally {
+      setProcessingIds(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(id);
+        return newSet;
+      });
     }
   };
 
   const handleRejectRegistration = async (id: string) => {
-    const { error } = await supabase.from('registrations').update({ status: 'rejected' }).eq('id', id);
-    if (error) {
-      toast({ title: 'Error', description: 'Failed to reject registration', variant: 'destructive' });
-    } else {
-      toast({ title: 'Success', description: 'Registration rejected!' });
-      fetchRegistrations();
+    if (processingIds.has(id)) return;
+    
+    setProcessingIds(prev => new Set(prev).add(id));
+    
+    try {
+      console.log('Attempting to reject registration:', id);
+      
+      // Optimistically update the UI
+      setRegistrations(prev => 
+        prev.map(reg => reg.id === id ? { ...reg, status: 'rejected' as const } : reg)
+      );
+
+      const { data, error } = await supabase
+        .from('registrations')
+        .update({ status: 'rejected', updated_at: new Date().toISOString() })
+        .eq('id', id)
+        .select()
+        .single();
+      
+      if (error) {
+        console.error('Error rejecting registration:', error);
+        console.error('Error details:', JSON.stringify(error, null, 2));
+        
+        // Check if it's an RLS policy error
+        if (error.message?.includes('policy') || error.code === '42501') {
+          toast({ 
+            title: 'Permission Error', 
+            description: 'Row Level Security is blocking this operation. Please add UPDATE policy in Supabase Dashboard.', 
+            variant: 'destructive' 
+          });
+        } else {
+          toast({ 
+            title: 'Error', 
+            description: error.message || 'Failed to reject registration', 
+            variant: 'destructive' 
+          });
+        }
+        
+        // Revert optimistic update
+        await fetchRegistrations();
+      } else {
+        console.log('Rejection successful:', data);
+        toast({ title: 'Success', description: 'Registration rejected!' });
+        // Fetch fresh data to ensure consistency
+        await fetchRegistrations();
+      }
+    } catch (error: any) {
+      console.error('Unexpected error:', error);
+      await fetchRegistrations();
+      toast({ 
+        title: 'Error', 
+        description: error.message || 'An unexpected error occurred', 
+        variant: 'destructive' 
+      });
+    } finally {
+      setProcessingIds(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(id);
+        return newSet;
+      });
     }
   };
 
@@ -291,7 +440,7 @@ const Admin = () => {
   };
 
   const exportToCSV = () => {
-    const headers = ['Team Name', 'Leader Name', 'Email', 'Phone', 'College', 'Year', 'Problem Statement', 'Status', 'Created At'];
+    const headers = ['Team Name', 'Leader Name', 'Email', 'Phone', 'College', 'Year', 'Problem Statement', 'Status', 'Payment Status', 'Created At'];
     const rows = registrations.map((reg) => [
       reg.team_name,
       reg.team_members?.[0]?.name || '',
@@ -301,6 +450,7 @@ const Admin = () => {
       reg.year_of_study,
       reg.problem_statement,
       reg.status,
+      reg.payment_screenshot ? 'Paid' : 'Pending',
       reg.created_at,
     ]);
 
@@ -324,6 +474,7 @@ const Admin = () => {
   const approvedCount = registrations.filter(r => r.status === 'approved').length;
   const pendingCount = registrations.filter(r => r.status === 'pending').length;
   const rejectedCount = registrations.filter(r => r.status === 'rejected').length;
+  const paidCount = registrations.filter(r => r.payment_screenshot).length;
 
   return (
     <div className="min-h-screen bg-background p-8">
@@ -334,6 +485,10 @@ const Admin = () => {
             <p className="text-muted-foreground">Manage your hackathon</p>
           </div>
           <div className="flex gap-4 items-center">
+            <Button onClick={fetchRegistrations} variant="outline" size="sm">
+              <RefreshCw className="w-4 h-4 mr-2" />
+              Refresh
+            </Button>
             <span className="text-sm text-muted-foreground hidden md:inline">{user?.email}</span>
             <Button onClick={handleLogout} variant="outline">
               <LogOut className="w-4 h-4 mr-2" />
@@ -343,7 +498,7 @@ const Admin = () => {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">Total</CardTitle>
@@ -374,6 +529,14 @@ const Admin = () => {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-red-500">{rejectedCount}</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-blue-500">Paid</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-blue-500">{paidCount}</div>
             </CardContent>
           </Card>
         </div>
@@ -432,48 +595,163 @@ const Admin = () => {
                 ) : (
                   <div className="space-y-4">
                     {filteredRegistrations.map((reg) => (
-                      <div key={reg.id} className="border rounded-lg p-4 hover:bg-muted/50">
-                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                      <div key={reg.id} className="border rounded-lg p-4 hover:bg-muted/50 transition-colors">
+                        <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
                           <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-2">
-                              <h3 className="font-semibold">{reg.team_name}</h3>
+                            <div className="flex items-center gap-2 mb-2 flex-wrap">
+                              <h3 className="font-semibold text-lg">{reg.team_name}</h3>
                               <Badge variant={
                                 reg.status === 'approved' ? 'default' :
                                 reg.status === 'rejected' ? 'destructive' : 'secondary'
                               }>
                                 {reg.status}
                               </Badge>
+                              {reg.payment_screenshot ? (
+                                <Badge className="bg-green-500/10 text-green-600 border-green-500/50">
+                                  <Image className="w-3 h-3 mr-1" />
+                                  Payment Verified
+                                </Badge>
+                              ) : (
+                                <Badge variant="outline" className="bg-orange-500/10 text-orange-600 border-orange-500/50">
+                                  Payment Pending
+                                </Badge>
+                              )}
                             </div>
-                            <p className="text-sm text-muted-foreground">
-                              <span className="font-medium">Leader:</span> {reg.team_members?.[0]?.name || '-'}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm text-muted-foreground">
+                              <p>
+                                <span className="font-medium">Leader:</span> {reg.team_members?.[0]?.name || '-'}
+                              </p>
+                              <p>
+                                <span className="font-medium">Email:</span> {reg.contact_email}
+                              </p>
+                              <p>
+                                <span className="font-medium">College:</span> {reg.institution}
+                              </p>
+                              <p>
+                                <span className="font-medium">Phone:</span> {reg.contact_phone || '-'}
+                              </p>
+                              <p>
+                                <span className="font-medium">Members:</span> {reg.team_members?.length || 1}
+                              </p>
+                              <p>
+                                <span className="font-medium">Year:</span> {reg.year_of_study || '-'}
+                              </p>
+                            </div>
+                            <p className="text-sm text-muted-foreground mt-2">
+                              <span className="font-medium">Problem Statement:</span> {reg.problem_statement}
                             </p>
-                            <p className="text-sm text-muted-foreground">
-                              <span className="font-medium">Email:</span> {reg.contact_email}
-                            </p>
-                            <p className="text-sm text-muted-foreground">
-                              <span className="font-medium">College:</span> {reg.institution}
-                            </p>
-                            <p className="text-sm text-muted-foreground">
-                              <span className="font-medium">Members:</span> {reg.team_members?.length || 1} |{' '}
-                              <span className="font-medium">Problem:</span> {reg.problem_statement}
-                            </p>
+                            {reg.payment_screenshot && (
+                              <div className="mt-3 p-3 bg-green-500/5 border border-green-500/20 rounded-md">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-sm font-medium text-green-600">Payment Screenshot Uploaded</span>
+                                  <a 
+                                    href={reg.payment_screenshot} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    className="text-sm text-blue-500 hover:underline font-medium flex items-center gap-1"
+                                  >
+                                    <Image className="w-4 h-4" />
+                                    View Screenshot
+                                  </a>
+                                </div>
+                              </div>
+                            )}
                           </div>
-                          <div className="flex gap-2">
+                          <div className="flex flex-col gap-2 md:min-w-[140px]">
                             {reg.status === 'pending' && (
                               <>
-                                <Button size="sm" onClick={() => handleApproveRegistration(reg.id)} className="bg-green-500 hover:bg-green-600">
-                                  <Check className="w-4 h-4 mr-1" />Approve
+                                <Button 
+                                  size="sm" 
+                                  onClick={() => handleApproveRegistration(reg.id)} 
+                                  className="bg-green-500 hover:bg-green-600 w-full"
+                                  disabled={processingIds.has(reg.id)}
+                                >
+                                  {processingIds.has(reg.id) ? (
+                                    <>
+                                      <RefreshCw className="w-4 h-4 mr-1 animate-spin" />
+                                      Processing...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Check className="w-4 h-4 mr-1" />Approve
+                                    </>
+                                  )}
                                 </Button>
-                                <Button size="sm" variant="destructive" onClick={() => handleRejectRegistration(reg.id)}>
-                                  <X className="w-4 h-4 mr-1" />Reject
+                                <Button 
+                                  size="sm" 
+                                  variant="destructive" 
+                                  onClick={() => handleRejectRegistration(reg.id)}
+                                  className="w-full"
+                                  disabled={processingIds.has(reg.id)}
+                                >
+                                  {processingIds.has(reg.id) ? (
+                                    <>
+                                      <RefreshCw className="w-4 h-4 mr-1 animate-spin" />
+                                      Processing...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <X className="w-4 h-4 mr-1" />Reject
+                                    </>
+                                  )}
                                 </Button>
                               </>
                             )}
-                            <Button size="sm" variant="outline" onClick={() => handleEditRegistration(reg)}>
+                            {reg.status === 'approved' && (
+                              <Button 
+                                size="sm" 
+                                variant="outline" 
+                                onClick={() => handleRejectRegistration(reg.id)}
+                                className="w-full"
+                                disabled={processingIds.has(reg.id)}
+                              >
+                                {processingIds.has(reg.id) ? (
+                                  <>
+                                    <RefreshCw className="w-4 h-4 mr-1 animate-spin" />
+                                    Processing...
+                                  </>
+                                ) : (
+                                  <>
+                                    <X className="w-4 h-4 mr-1" />Revoke
+                                  </>
+                                )}
+                              </Button>
+                            )}
+                            {reg.status === 'rejected' && (
+                              <Button 
+                                size="sm" 
+                                onClick={() => handleApproveRegistration(reg.id)} 
+                                className="bg-green-500 hover:bg-green-600 w-full"
+                                disabled={processingIds.has(reg.id)}
+                              >
+                                {processingIds.has(reg.id) ? (
+                                  <>
+                                    <RefreshCw className="w-4 h-4 mr-1 animate-spin" />
+                                    Processing...
+                                  </>
+                                ) : (
+                                  <>
+                                    <Check className="w-4 h-4 mr-1" />Approve
+                                  </>
+                                )}
+                              </Button>
+                            )}
+                            <Button 
+                              size="sm" 
+                              variant="outline" 
+                              onClick={() => handleEditRegistration(reg)}
+                              className="w-full"
+                              disabled={processingIds.has(reg.id)}
+                            >
                               <Edit className="w-4 h-4 mr-1" />Edit
                             </Button>
-                            <Button size="sm" variant="outline" onClick={() => handleSendEmail(reg.contact_email)}>
-                              <Mail className="w-4 h-4" />
+                            <Button 
+                              size="sm" 
+                              variant="outline" 
+                              onClick={() => handleSendEmail(reg.contact_email)}
+                              className="w-full"
+                            >
+                              <Mail className="w-4 h-4 mr-1" />Email
                             </Button>
                           </div>
                         </div>

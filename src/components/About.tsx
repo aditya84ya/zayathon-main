@@ -82,8 +82,8 @@ const About = () => {
           {[
             { value: "500+", label: "Participants" },
             { value: "100+", label: "Teams" },
-            { value: "₹5L+", label: "Prize Pool" },
-            { value: "20+", label: "Problem Statements" },
+            { value: "₹*****", label: "Prize Pool" },
+            { value: "10+", label: "Problem Domains" },
           ].map((stat, index) => (
             <motion.div
               key={stat.label}

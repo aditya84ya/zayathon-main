@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -15,6 +16,7 @@ import { addRegistration } from "../integrations/supabase/client";
 
 const Registration = () => {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [submitted, setSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
@@ -199,8 +201,13 @@ const Registration = () => {
       setNewMember({ name: "", email: "", phone: "", college: "", year: "" });
       toast({
         title: "Registration Successful!",
-        description: "We'll contact you with further details soon.",
+        description: "Redirecting to payment page...",
       });
+
+      // Redirect to payment page with registration ID
+      setTimeout(() => {
+        navigate('/payment', { state: { registrationId: result.id } });
+      }, 1500);
     } catch (error: any) {
       toast({
         title: "Registration Failed",

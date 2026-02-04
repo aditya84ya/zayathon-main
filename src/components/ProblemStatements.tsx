@@ -2,16 +2,15 @@ import { motion } from "framer-motion";
 import { FileText, Lightbulb, Target } from "lucide-react";
 
 const problemStatements = [
-  "Generative AI & LLM Applications",
+  "Agentic AI",
   "Robotics & Autonomous Systems",
   "Cybersecurity & Threat Intelligence",
   "HealthTech & MedAI",
   "FinTech & Blockchain",
   "Smart Cities & IoT",
-  "Green Tech & Energy",
   "Agritech & Rural Innovation",
   "Transportation & Logistics",
-  "Open Innovation (Wildcard)",
+  "Open Innovation",
 ];
 
 const ProblemStatements = () => {
@@ -25,7 +24,7 @@ const ProblemStatements = () => {
           transition={{ duration: 0.6 }}
         >
           <h2 className="section-title">
-            Problem <span className="text-gradient">Statements</span>
+            Problem <span className="text-gradient">Domains</span>
           </h2>
           <p className="section-subtitle">
             Choose from our diverse range of industry-relevant challenges and showcase your innovation.

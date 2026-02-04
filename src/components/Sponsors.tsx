@@ -48,6 +48,25 @@ const SponsorCard = ({
 };
 
 const Sponsors = () => {
+  const handleSponsorClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    e.preventDefault();
+    const email = "director@zayathon.in";
+    const subject = "Sponsorship Inquiry for Zayathon 2026";
+    const body = "Hi Zayathon Team,\n\nI am interested in learning more about sponsorship opportunities for Zayathon 2026.\n\n";
+    
+    // Check if user is on mobile
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    
+    if (isMobile) {
+      // On mobile, use mailto (works reliably)
+      window.location.href = `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    } else {
+      // On desktop, open Gmail compose in new tab (more reliable than mailto)
+      const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${email}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+      window.open(gmailUrl, '_blank');
+    }
+  };
+
   return (
     <section id="sponsors" className="py-20 relative">
       <div className="container mx-auto px-4">
@@ -128,10 +147,11 @@ const Sponsors = () => {
             Interested in sponsoring Zayathon?
           </p>
           <motion.a
-            href="mailto:sponsors@zayathon.com"
+            href="mailto:director@zayathon.in"
+            onClick={handleSponsorClick}
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
-            className="neon-button-secondary inline-block text-sm py-3 px-6"
+            className="neon-button-secondary inline-block text-sm py-3 px-6 cursor-pointer"
           >
             Become a Sponsor
           </motion.a>
