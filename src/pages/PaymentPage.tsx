@@ -173,7 +173,7 @@ const PaymentPage = () => {
                   />
                 </div>
                 <div className="text-center text-gray-300 space-y-2">
-                  <p className="font-semibold text-lg">Registration Fee: ₹500</p>
+                  <p className="font-semibold text-lg">Registration Fee: ₹250</p>
                   <p className="text-sm text-gray-400">per team</p>
                 </div>
               </CardContent>
