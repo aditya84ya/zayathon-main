@@ -26,9 +26,10 @@ const Registration = () => {
     phone: "",
     college: "",
     year: "",
+    department: "",
   });
-  const [teamMembers, setTeamMembers] = useState<Array<{ name: string; email?: string; phone: string; college: string; year: string }>>([]);
-  const [newMember, setNewMember] = useState({ name: "", email: "", phone: "", college: "", year: "" });
+  const [teamMembers, setTeamMembers] = useState<Array<{ name: string; email?: string; phone: string; college: string; year: string; department: string }>>([]);
+  const [newMember, setNewMember] = useState({ name: "", email: "", phone: "", college: "", year: "", department: "" });
   const isValidEmail = (value: string) => /.+@.+\..+/.test(value.trim());
   const isValidPhone = (value: string) => /^\+?\d{10,15}$/.test(value.trim());
   const isValidName = (value: string) => /^[A-Za-z][A-Za-z\s.'-]{1,}$/.test(value.trim());
@@ -53,6 +54,7 @@ const Registration = () => {
       { key: 'phone', label: 'Phone Number', value: formData.phone },
       { key: 'college', label: 'College/University', value: formData.college },
       { key: 'year', label: 'Year of Study', value: formData.year },
+      { key: 'department', label: 'Department', value: formData.department },
     ];
 
     const missing = requiredFields.filter((field) => !field.value.trim()).map((field) => field.label);
@@ -112,6 +114,7 @@ const Registration = () => {
       phone: member.phone.trim(),
       college: member.college.trim(),
       year: member.year.trim(),
+      department: member.department.trim(),
     }));
 
     for (const member of sanitizedTeamMembers) {
@@ -134,7 +137,7 @@ const Registration = () => {
     }
 
     const allMembers = [
-      { name: formData.leaderName.trim(), email: formData.email.trim(), phone: formData.phone.trim(), college: formData.college.trim(), year: formData.year.trim() },
+      { name: formData.leaderName.trim(), email: formData.email.trim(), phone: formData.phone.trim(), college: formData.college.trim(), year: formData.year.trim(), department: formData.department.trim() },
       ...sanitizedTeamMembers,
     ];
 
@@ -186,6 +189,7 @@ const Registration = () => {
         phone: formData.phone,
         college: formData.college,
         year: formData.year,
+        department: formData.department,
         members: allMembers,
         problemStatement: 'General submission',
         submittedAt: new Date(),
@@ -196,9 +200,9 @@ const Registration = () => {
       }
 
       setSubmitted(true);
-      setFormData({ teamName: "", leaderName: "", email: "", phone: "", college: "", year: "" });
+      setFormData({ teamName: "", leaderName: "", email: "", phone: "", college: "", year: "", department: "" });
       setTeamMembers([]);
-      setNewMember({ name: "", email: "", phone: "", college: "", year: "" });
+      setNewMember({ name: "", email: "", phone: "", college: "", year: "", department: "" });
       toast({
         title: "Registration Successful!",
         description: "Redirecting to payment page...",
@@ -345,6 +349,34 @@ const Registration = () => {
                   </div>
                 </div>
 
+                <div className="space-y-2">
+                  <Label htmlFor="department" className="text-foreground">
+                    Department *
+                  </Label>
+                  <Select
+                    value={formData.department}
+                    onValueChange={(value) => handleChange("department", value)}
+                  >
+                    <SelectTrigger className="bg-input border-border">
+                      <SelectValue placeholder="Select department" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="CSE">CSE</SelectItem>
+                      <SelectItem value="AIML">AIML</SelectItem>
+                      <SelectItem value="CSD">CSD</SelectItem>
+                      <SelectItem value="CSBE">CSBE</SelectItem>
+                      <SelectItem value="IT">IT</SelectItem>
+                      <SelectItem value="ECE">ECE</SelectItem>
+                      <SelectItem value="BME">BME</SelectItem>
+                      <SelectItem value="EEE">EEE</SelectItem>
+                      <SelectItem value="CIVIL">CIVIL</SelectItem>
+                      <SelectItem value="AIDS">AIDS</SelectItem>
+                      <SelectItem value="MEC">MEC</SelectItem>
+                      <SelectItem value="MECH">MECH</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <div>
@@ -360,7 +392,7 @@ const Registration = () => {
                         <div key={idx} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border px-3 py-2">
                           <div className="text-sm text-foreground">
                             <p className="font-semibold">{member.name}</p>
-                            <p className="text-muted-foreground">{member.phone} • {member.college} • Year {member.year}</p>
+                            <p className="text-muted-foreground">{member.phone} • {member.college} • Year {member.year} • {member.department}</p>
                           </div>
                           <button
                             type="button"
@@ -426,6 +458,28 @@ const Registration = () => {
                             </SelectContent>
                           </Select>
                         </div>
+                        <div className="space-y-1">
+                          <Label className="text-foreground">Department</Label>
+                          <Select value={newMember.department} onValueChange={(value) => setNewMember((prev) => ({ ...prev, department: value }))}>
+                            <SelectTrigger className="bg-input border-border">
+                              <SelectValue placeholder="Select department" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="CSE">CSE</SelectItem>
+                              <SelectItem value="AIML">AIML</SelectItem>
+                              <SelectItem value="CSD">CSD</SelectItem>
+                              <SelectItem value="CSBE">CSBE</SelectItem>
+                              <SelectItem value="IT">IT</SelectItem>
+                              <SelectItem value="ECE">ECE</SelectItem>
+                              <SelectItem value="BME">BME</SelectItem>
+                              <SelectItem value="EEE">EEE</SelectItem>
+                              <SelectItem value="CIVIL">CIVIL</SelectItem>
+                              <SelectItem value="AIDS">AIDS</SelectItem>
+                              <SelectItem value="MEC">MEC</SelectItem>
+                              <SelectItem value="MECH">MECH</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
                       </div>
                       <button
                         type="button"
@@ -438,10 +492,11 @@ const Registration = () => {
                             phone: newMember.phone.trim(),
                             college: newMember.college.trim(),
                             year: newMember.year.trim(),
+                            department: newMember.department.trim(),
                           };
 
-                          if (!candidate.name || !candidate.phone || !candidate.college || !candidate.year) {
-                            toast({ title: "Complete member fields", description: "Fill name, phone, college, and year before adding.", variant: "destructive" });
+                          if (!candidate.name || !candidate.phone || !candidate.college || !candidate.year || !candidate.department) {
+                            toast({ title: "Complete member fields", description: "Fill name, phone, college, year, and department before adding.", variant: "destructive" });
                             return;
                           }
                           if (!isValidName(candidate.name)) {
@@ -462,7 +517,7 @@ const Registration = () => {
                           }
 
                           setTeamMembers((prev) => [...prev, candidate]);
-                          setNewMember({ name: "", email: "", phone: "", college: "", year: "" });
+                          setNewMember({ name: "", email: "", phone: "", college: "", year: "", department: "" });
                         }}
                       >
                         Add Member

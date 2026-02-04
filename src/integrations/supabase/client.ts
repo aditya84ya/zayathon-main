@@ -17,7 +17,8 @@ export const addRegistration = async (registrationData: {
   phone: string;
   college: string;
   year: string;
-  members: Array<{ name: string; email?: string; phone?: string; college?: string; year?: string }>;
+  department: string;
+  members: Array<{ name: string; email?: string; phone?: string; college?: string; year?: string; department?: string }>;
   problemStatement?: string;
   submittedAt?: Date;
   status?: 'pending' | 'approved' | 'rejected';
@@ -34,6 +35,7 @@ export const addRegistration = async (registrationData: {
       phone: (member.phone || '').trim(),
       college: (member.college || '').trim(),
       year: (member.year || '').trim(),
+      department: (member.department || '').trim(),
     }));
 
     // Map the data to match the Supabase schema
@@ -44,6 +46,7 @@ export const addRegistration = async (registrationData: {
       contact_phone: registrationData.phone.trim(),
       institution: registrationData.college.trim(),
       year_of_study: registrationData.year.trim(),
+      department: registrationData.department.trim(),
       problem_statement: (registrationData.problemStatement || 'Not specified').trim(),
       experience_level: (registrationData.experienceLevel || 'beginner').trim(),
       status: registrationData.status || 'pending',

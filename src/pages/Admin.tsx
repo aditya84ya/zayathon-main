@@ -29,6 +29,7 @@ interface Registration {
   contact_phone: string;
   institution: string;
   year_of_study: string;
+  department: string;
   problem_statement: string;
   status: 'pending' | 'approved' | 'rejected';
   payment_screenshot?: string;
@@ -84,6 +85,7 @@ const Admin = () => {
     contact_phone: '',
     institution: '',
     year_of_study: '',
+    department: '',
     status: 'pending' as 'pending' | 'approved' | 'rejected',
     problem_statement: ''
   });
@@ -331,6 +333,7 @@ const Admin = () => {
       contact_phone: reg.contact_phone,
       institution: reg.institution,
       year_of_study: reg.year_of_study,
+      department: reg.department || '',
       status: reg.status,
       problem_statement: reg.problem_statement
     });
@@ -348,6 +351,7 @@ const Admin = () => {
         contact_phone: editForm.contact_phone,
         institution: editForm.institution,
         year_of_study: editForm.year_of_study,
+        department: editForm.department,
         status: editForm.status,
         problem_statement: editForm.problem_statement
       })
@@ -440,7 +444,7 @@ const Admin = () => {
   };
 
   const exportToCSV = () => {
-    const headers = ['Team Name', 'Leader Name', 'Email', 'Phone', 'College', 'Year', 'Problem Statement', 'Status', 'Payment Status', 'Created At'];
+    const headers = ['Team Name', 'Leader Name', 'Email', 'Phone', 'College', 'Year', 'Department', 'Problem Statement', 'Status', 'Payment Status', 'Created At'];
     const rows = registrations.map((reg) => [
       reg.team_name,
       reg.team_members?.[0]?.name || '',
@@ -448,6 +452,7 @@ const Admin = () => {
       reg.contact_phone,
       reg.institution,
       reg.year_of_study,
+      reg.department || '',
       reg.problem_statement,
       reg.status,
       reg.payment_screenshot ? 'Paid' : 'Pending',
@@ -635,6 +640,9 @@ const Admin = () => {
                               </p>
                               <p>
                                 <span className="font-medium">Year:</span> {reg.year_of_study || '-'}
+                              </p>
+                              <p>
+                                <span className="font-medium">Department:</span> {reg.department || '-'}
                               </p>
                             </div>
                             <p className="text-sm text-muted-foreground mt-2">
@@ -1042,6 +1050,28 @@ const Admin = () => {
                 <option value="1">1st Year</option>
                 <option value="2">2nd Year</option>
                 <option value="3">3rd Year</option>
+              </select>
+            </div>
+            <div className="space-y-2">
+              <Label>Department</Label>
+              <select
+                className="w-full p-2 border rounded"
+                value={editForm.department}
+                onChange={(e) => setEditForm({ ...editForm, department: e.target.value })}
+              >
+                <option value="">Select department</option>
+                <option value="CSE">CSE</option>
+                <option value="AIML">AIML</option>
+                <option value="CSD">CSD</option>
+                <option value="CSBE">CSBE</option>
+                <option value="IT">IT</option>
+                <option value="ECE">ECE</option>
+                <option value="BME">BME</option>
+                <option value="EEE">EEE</option>
+                <option value="CIVIL">CIVIL</option>
+                <option value="AIDS">AIDS</option>
+                <option value="MEC">MEC</option>
+                <option value="MECH">MECH</option>
               </select>
             </div>
             <div className="space-y-2">
