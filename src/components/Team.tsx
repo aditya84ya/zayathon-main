@@ -10,25 +10,25 @@ const team = [
     name: "Rahul Kumar Yadav",
     role: "Lead Organizer",
     image: organizer1,
-    social: { linkedin: "#", twitter: "#", github: "#" },
+    social: { linkedin: "https://www.linkedin.com/in/rahul-kumar-yadav-909a95320", github: "https://github.com/rjrahulyadav" },
   },
   {
     name: "Aditya Chaurasiya",
     role: "Technical Head",
     image: organizer2,
-    social: { linkedin: "#", twitter: "#", github: "#" },
+    social: { linkedin: "https://linkedin.com/in/adityachaurasiya7", github: "https://github.com/aditya84ya" },
   },
   {
-    name: "AKASH Adhikari",
+    name: "Akash Adhikari",
     role: "Operations Lead",
     image: organizer3,
-    social: { linkedin: "#", twitter: "#", github: "#" },
+    social: { linkedin: "https://www.linkedin.com/in/akash-adhikari-64a5a9328", github: "https://github.com/akashahir798" },
   },
   {
     name: "Shivshankar Kumar Jaisawal",
     role: "Marketing Head",
     image: organizer4,
-    social: { linkedin: "#", twitter: "#", github: "#" },
+    social: { linkedin: "https://www.linkedin.com/in/shivshankar-kumar-jaysawal-0228b8335", github: "https://github.com/shivshankarjayswal63-art" },
   },
 ];
 
@@ -85,13 +85,13 @@ const Team = () => {
 
               <div className="flex justify-center gap-4">
                 {[
-                  { icon: Linkedin, href: member.social.linkedin },
-                  { icon: Twitter, href: member.social.twitter },
-                  { icon: Github, href: member.social.github },
+                  { icon: Linkedin, target: "_blank", href: member.social.linkedin },
+                  { icon: Github, target: "_blank", href: member.social.github },
                 ].map((social, i) => (
                   <motion.a
                     key={i}
                     href={social.href}
+                    target={social.target}
                     whileHover={{ scale: 1.2, y: -3 }}
                     className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
                   >
